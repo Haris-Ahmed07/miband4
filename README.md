@@ -9,9 +9,7 @@
 > Only works on linux.
 ![demo](screen/1.png)
 
-## Contributors 
 
- MiBand 4 provides superset of services provided by MiBand 2/3. For the services that were similar for both devices, the bluetooth characteristics, UUIDs  and request/response byte sequence were the same. Therefore,  [Satkar Dhakal](https://github.com/satcar77) utilized some of the informations already uncovered by [Freeyourgadget team](https://github.com/Freeyourgadget/Gadgetbridge) and made use of the code by [Andrey Nikishaev](https://github.com/creotiv) for MiBand2.
 
 
 ## AuthKey
@@ -55,7 +53,7 @@ sqlite3 /data/data/com.xiaomi.hm.health/databases/origin_db_[YOURDBNAMEHERE] "se
 
 - Clone this repo to your local machine using 
  ```
- git clone https://github.com/Gaspared/miband4.git
+ git clone https://github.com/Haris-Ahmed07/miband4.git
   ```
 
 1.  Install the dependencies. Libglib2 is required for bluepy. 
