@@ -170,10 +170,10 @@ class miband(Peripheral):
         self._desc_music_notif = self._char_music_notif.getDescriptors(forUUID=UUIDS.NOTIFICATION_DESCRIPTOR)[0]
 
         self._auth_notif(True)
-        self.enable_music()
         self.activity_notif_enabled = False
         self.waitForNotifications(0.1)
         self.setDelegate( Delegate(self) )
+        
     def generateAuthKey(self):
         if(self.authKey):
             return struct.pack('<18s',b'\x01\x00'+ self.auth_key)
@@ -193,19 +193,6 @@ class miband(Peripheral):
         else:
             self._log.error("Something went wrong while changing the Auth Service notifications status...")
 
-    def _auth_previews_data_notif(self, enabled):
-        if enabled:
-            self._log.info("Enabling Fetch Char notifications status...")
-            self._desc_fetch.write(b"\x01\x00", True)
-            self._log.info("Enabling Activity Char notifications status...")
-            self._desc_activity.write(b"\x01\x00", True)
-            self.activity_notif_enabled = True
-        else:
-            self._log.info("Disabling Fetch Char notifications status...")
-            self._desc_fetch.write(b"\x00\x00", True)
-            self._log.info("Disabling Activity Char notifications status...")
-            self._desc_activity.write(b"\x00\x00", True)
-            self.activity_notif_enabled = False
 
     def initialize(self):
         self._req_rdn()
@@ -262,35 +249,6 @@ class miband(Peripheral):
             except Empty:
                 break
 
-    def send_custom_alert(self, type, phone, msg):
-        if type == 5:
-            base_value = '\x05\x01'
-        elif type == 4:
-            base_value = '\x04\x01'
-        elif type == 3:
-                base_value = '\x03\x01'
-        elif type == 1:
-            base_value = '\x01\x01'
-        svc = self.getServiceByUUID(UUIDS.SERVICE_ALERT_NOTIFICATION)
-        char = svc.getCharacteristics(UUIDS.CHARACTERISTIC_CUSTOM_ALERT)[0]
-        # 3 new lines: space for the icon, two spaces for the time HH:MM
-        text = base_value+phone+'\x0a\x0a\x0a'+msg.replace('\\n','\n')
-        char.write(bytes(text,'utf-8'), withResponse=True)
-
-    def get_steps(self):
-        char = self.svc_1.getCharacteristics(UUIDS.CHARACTERISTIC_STEPS)[0]
-        a = char.read()
-        steps = struct.unpack('h', a[1:3])[0] if len(a) >= 3 else None
-        meters = struct.unpack('h', a[5:7])[0] if len(a) >= 7 else None
-        fat_burned = struct.unpack('h', a[2:4])[0] if len(a) >= 4 else None
-        # why only 1 byte??
-        calories = struct.unpack('b', a[9:10])[0] if len(a) >= 10 else None
-        return {
-            "steps": steps,
-            "meters": meters,
-            "fat_burned": fat_burned,
-            "calories": calories
-        }
     def _parse_raw_accel(self, bytes):
         res = []
         for i in xrange(3):
@@ -345,110 +303,6 @@ class miband(Peripheral):
         char = self.svc_1.getCharacteristics(UUIDS.CHARACTERISTIC_CURRENT_TIME)[0]
         return self._parse_date(char.read()[0:9])
 
-    def get_revision(self):
-        svc = self.getServiceByUUID(UUIDS.SERVICE_DEVICE_INFO)
-        char = svc.getCharacteristics(UUIDS.CHARACTERISTIC_REVISION)[0]
-        data = char.read()
-        return data.decode('utf-8')
-
-    def get_hrdw_revision(self):
-        svc = self.getServiceByUUID(UUIDS.SERVICE_DEVICE_INFO)
-        char = svc.getCharacteristics(UUIDS.CHARACTERISTIC_HRDW_REVISION)[0]
-        data = char.read()
-        return data.decode('utf-8')
-
-    def set_encoding(self, encoding="en_US"):
-        char = self.svc_1.getCharacteristics(UUIDS.CHARACTERISTIC_CONFIGURATION)[0]
-        packet = struct.pack('5s', encoding)
-        packet = b'\x06\x17\x00' + packet
-        return char.write(packet)
-
-    def set_heart_monitor_sleep_support(self, enabled=True, measure_minute_interval=1):
-        char_m = self.svc_heart.getCharacteristics(UUIDS.CHARACTERISTIC_HEART_RATE_MEASURE)[0]
-        char_d = char_m.getDescriptors(forUUID=UUIDS.NOTIFICATION_DESCRIPTOR)[0]
-        char_d.write(b'\x01\x00', True)
-        self._char_heart_ctrl.write(b'\x15\x00\x00', True)
-        # measure interval set to off
-        self._char_heart_ctrl.write(b'\x14\x00', True)
-        if enabled:
-            self._char_heart_ctrl.write(b'\x15\x00\x01', True)
-            # measure interval set
-            self._char_heart_ctrl.write(b'\x14' + str(measure_minute_interval).encode(), True)
-        char_d.write(b'\x00\x00', True)
-
-    def _enable_fw_notification(self):
-        svc = self.getServiceByUUID(UUIDS.SERVICE_DFU_FIRMWARE)
-        char = svc.getCharacteristics(UUIDS.CHARACTERISTIC_DFU_FIRMWARE)[0]
-        des = char.getDescriptors(forUUID = UUIDS.NOTIFICATION_DESCRIPTOR)[0]
-        des.write(b"\x01\x00", True)
-
-    def get_serial(self):
-        svc = self.getServiceByUUID(UUIDS.SERVICE_DEVICE_INFO)
-        char = svc.getCharacteristics(UUIDS.CHARACTERISTIC_SERIAL)[0]
-        data = char.read()
-        serial = struct.unpack('12s', data[-12:])[0] if len(data) == 12 else None
-        return serial.decode('utf-8')
-
-    def send_alert(self, _type):
-        svc = self.getServiceByUUID(UUIDS.SERVICE_ALERT)
-        char = svc.getCharacteristics(UUIDS.CHARACTERISTIC_ALERT)[0]
-        char.write(_type)
-
-
-    def set_current_time(self, date):
-        char = self.svc_1.getCharacteristics(UUIDS.CHARACTERISTIC_CURRENT_TIME)[0]
-        return char.write(self.create_date_data(date), True)
-
-    def set_heart_monitor_sleep_support(self, enabled=True, measure_minute_interval=1):
-        char_m = self.svc_heart.getCharacteristics(UUIDS.CHARACTERISTIC_HEART_RATE_MEASURE)[0]
-        char_d = char_m.getDescriptors(forUUID=UUIDS.NOTIFICATION_DESCRIPTOR)[0]
-        char_d.write(b'\x01\x00', True)
-        self._char_heart_ctrl.write(b'\x15\x00\x00', True)
-        # measure interval set to off
-        self._char_heart_ctrl.write(b'\x14\x00', True)
-        if enabled:
-            self._char_heart_ctrl.write(b'\x15\x00\x01', True)
-            # measure interval set
-            self._char_heart_ctrl.write(b'\x14' + str(measure_minute_interval).encode(), True)
-        char_d.write(b'\x00\x00', True)
-
-    def dfuUpdate(self,fileName):
-        print('Update Watchface/Firmware')
-        svc = self.getServiceByUUID(UUIDS.SERVICE_DFU_FIRMWARE)
-        char = svc.getCharacteristics(UUIDS.CHARACTERISTIC_DFU_FIRMWARE)[0]
-        char_write = svc.getCharacteristics(UUIDS.CHARACTERISTIC_DFU_FIRMWARE_WRITE)[0]
-        # self._enable_fw_notification()
-        # self.setDelegate(TestDelegate(self))
-        extension = os.path.splitext(fileName)[1][1:]
-        fileSize = os.path.getsize(fileName)
-        # calculating crc checksum of firmware
-        #crc32
-        crc=0xFFFF
-        with open(fileName,"rb") as f:
-            crc = zlib.crc32(f.read())
-        print('CRC32 Value is-->', crc)
-        # input('Press Enter to Continue')
-        payload = b'\x01\x08'+struct.pack("<I",fileSize)[:-1]+b'\x00'+struct.pack("<I",crc)
-        char.write(payload,withResponse=True)
-        self.waitForNotifications(2)
-        char.write(b'\x03\x01',withResponse=True)
-        with open(fileName,"rb") as f:
-            while True:
-                c = f.read(20) #takes 20 bytes 
-                if not c:
-                    print ("Bytes written successfully. Wait till sync finishes")
-                    break
-                char_write.write(c)
-        # # after update is done send these values
-        char.write(b'\x00', withResponse=True)
-        self.waitForNotifications(2)
-        char.write(b'\x04', withResponse=True)
-        self.waitForNotifications(2)
-        if extension.lower() == "fw":
-            self.waitForNotifications(0.5)
-            char.write(b'\x05', withResponse=True)
-        print('Update Complete')
-        input('Press Enter to Continue')
 
     def get_heart_rate_one_time(self):
         # stop continous
@@ -512,94 +366,3 @@ class miband(Peripheral):
         self.heart_measure_callback = None
         self.heart_raw_callback = None
         self.accel_raw_callback = None
-
-    def start_get_previews_data(self, start_timestamp):
-        if not self.activity_notif_enabled:
-            self._auth_previews_data_notif(True)
-            self.waitForNotifications(0.1)
-        print("Trigger activity communication")
-        year = struct.pack("<H", start_timestamp.year)
-        month = struct.pack("b", start_timestamp.month)
-        day = struct.pack("b", start_timestamp.day)
-        hour = struct.pack("b", start_timestamp.hour)
-        minute = struct.pack("b", start_timestamp.minute)
-        ts = year + month + day + hour + minute
-        char = self.svc_1.getCharacteristics(UUIDS.CHARACTERISTIC_CURRENT_TIME)[0]
-        utc_offset = char.read()[9:11]
-        trigger = b'\x01\x01' + ts + utc_offset
-        self._char_fetch.write(trigger, False)
-        self.active = True
-    
-    def get_activity_betwn_intervals(self,start_timestamp, end_timestamp, callback ):
-        self.end_timestamp = end_timestamp
-        self.start_get_previews_data(start_timestamp)
-        self.activity_callback = callback
-
-    def enable_music(self):
-        self._desc_music_notif.write(b'\x01\x00')
-
-    def writeChunked(self,type,data):
-        MAX_CHUNKLENGTH = 17
-        remaining = len(data)
-        count =0
-        while(remaining > 0):
-            copybytes = min(remaining,MAX_CHUNKLENGTH)
-            chunk=b''
-            flag = 0
-            if(remaining <= MAX_CHUNKLENGTH):
-                flag |= 0x80
-                if(count == 0):
-                    flag |= 0x40
-            elif(count>0):
-                flag |= 0x40
-
-            chunk+=b'\x00'
-            chunk+= bytes([flag|type])
-            chunk+= bytes([count & 0xff])
-            chunk+= data[(count * MAX_CHUNKLENGTH):(count * MAX_CHUNKLENGTH)+copybytes]
-            count+=1
-            self._char_chunked.write(chunk)
-            remaining-=copybytes
-
-    def setTrack(self,track,state):
-        self.track = track
-        self.pp_state = state
-        self.setMusic()
-
-    def setMusicCallback(self,play=None,pause=None,forward=None,backward=None,volumeup=None,volumedown=None,focusin=None,focusout=None):
-        if play is not None:
-            self._default_music_play = play
-        if pause is not None:
-            self._default_music_pause = pause
-        if forward is not None:
-            self._default_music_forward = forward
-        if backward is not None:
-            self._default_music_back = backward
-        if volumedown is not None:
-            self._default_music_vdown = volumedown
-        if volumeup is not None:
-            self._default_music_vup = volumeup
-        if focusin is not None:
-            self._default_music_focus_in = focusin
-        if focusout is not None:
-            self._default_music_focus_out = focusout
-
-    def setMusic(self):
-        track = self.track
-        state = self.pp_state
-        # st=b"\x01\x00\x01\x00\x00\x00\x01\x00"
-        #self.writeChunked(3,st)
-        flag = 0x00
-        flag |=0x01
-        length =8
-        if(len(track)>0):
-            length+=len(track.encode('utf-8'))
-            flag |=0x0e
-        buf = bytes([flag])+bytes([state])+bytes([1,0,0,0])+bytes([1,0])
-        if(len(track)>0):
-            buf+=bytes(track,'utf-8')
-            buf+=bytes([0])
-        self.writeChunked(3,buf)
-
-
-
