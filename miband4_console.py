@@ -13,6 +13,7 @@ from cursesmenu.items import *
 
 from constants import MUSICSTATE
 from miband import miband
+from constants import ACCELEROMETER_UUID
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-m', '--mac', required=False, help='Set mac address of the device')
@@ -101,6 +102,12 @@ def get_realtime():
     band.start_heart_rate_realtime(heart_measure_callback=heart_logger)
     input('Press Enter to continue')
 
+
+def accel_raw_callback(accel_data):
+    """This callback handles the incoming accelerometer data."""
+    for axis_data in accel_data:
+        print(f"X: {axis_data['x']}, Y: {axis_data['y']}")
+
     
 if __name__ == "__main__":
     success = False
@@ -126,7 +133,17 @@ if __name__ == "__main__":
     single_heart_rate_item = FunctionItem("@ Get Heart Rate", get_heart_rate)
     real_time_heart_rate_item = FunctionItem("@ Get realtime heart rate data", get_realtime)
     
-    menu.items.append(info_item)
-    menu.items.append(single_heart_rate_item)
-    menu.items.append(real_time_heart_rate_item)
-    menu.show()
+    # menu.items.append(info_item)
+    # menu.items.append(single_heart_rate_item)
+    # menu.items.append(real_time_heart_rate_item)
+    # menu.show()
+    
+     # Example 1: Get one-time accelerometer reading
+    accel_data = miband_device.get_accel_one_time()
+    print("One-time accelerometer data:")
+    for axis_data in accel_data:
+        print(f"X: {axis_data['x']}, Y: {axis_data['y']}")
+
+    # Example 2: Start continuous accelerometer data collection
+    print("\nStarting continuous accelerometer readings:")
+    miband_device.start_accelerometer_realtime(accel_raw_callback)

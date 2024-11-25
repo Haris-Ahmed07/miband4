@@ -6,6 +6,8 @@ import struct
 from datetime import datetime, timedelta
 from Crypto.Cipher import AES
 from datetime import datetime
+from constants import ACCELEROMETER_UUID
+
 try:
     import zlib
 except ImportError:
@@ -168,6 +170,10 @@ class miband(Peripheral):
         self._char_chunked = self.svc_1.getCharacteristics(UUIDS.CHARACTERISTIC_CHUNKED_TRANSFER)[0]
         self._char_music_notif= self.svc_1.getCharacteristics(UUIDS.CHARACTERISTIC_MUSIC_NOTIFICATION)[0]
         self._desc_music_notif = self._char_music_notif.getDescriptors(forUUID=UUIDS.NOTIFICATION_DESCRIPTOR)[0]
+
+        # Add accelerometer service and characteristic initialization
+        self._char_accel = self.getCharacteristics(uuid=ACCELEROMETER_UUID)[0]
+        self._desc_accel = self._char_accel.getDescriptors(forUUID=UUIDS.NOTIFICATION_DESCRIPTOR)[0]
 
         self._auth_notif(True)
         self.activity_notif_enabled = False
@@ -366,3 +372,43 @@ class miband(Peripheral):
         self.heart_measure_callback = None
         self.heart_raw_callback = None
         self.accel_raw_callback = None
+        
+    def start_accelerometer_realtime(self, accel_raw_callback):
+        """Start continuous accelerometer data notifications."""
+        self.accel_raw_callback = accel_raw_callback
+        
+        # Enable accelerometer notifications
+        self._desc_accel.write(b'\x01\x00', True)
+        
+        t = time.time()
+        while True:
+            self.waitForNotifications(0.5)
+            self._parse_queue()
+            # Send ping request every 12 sec to keep connection alive
+            if (time.time() - t) >= 12:
+                self._char_accel.write(b'\x16', True)
+                t = time.time()
+    
+    def stop_accelerometer_realtime(self):
+        """Stop continuous accelerometer data notifications."""
+        self._desc_accel.write(b'\x00\x00', True)  # Disable notifications
+        self.accel_raw_callback = None
+    
+    def get_accel_one_time(self):
+        """Get one-time accelerometer data."""
+        self._char_accel.write(b'\x01', True)
+        res = None
+        while not res:
+            self.waitForNotifications(self.timeout)
+            res = self._get_from_queue(QUEUE_TYPES.RAW_ACCEL)
+        
+        accel_data = self._parse_raw_accel(res)
+        return accel_data
+    
+    def _parse_raw_accel(self, bytes):
+        """Parse the raw accelerometer data (X and Y only)."""
+        res = []
+        for i in range(2):  # Only for X and Y axes, assuming we have only 2 axes of data
+            x, y = struct.unpack('hh', bytes[2 + i * 4:6 + i * 4])  # Assuming 2-axis accelerometer data (X and Y)
+            res.append({'x': x, 'y': y})  # Store x and y axis data
+        return res
