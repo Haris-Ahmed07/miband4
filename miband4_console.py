@@ -13,7 +13,6 @@ from cursesmenu.items import *
 
 from constants import MUSICSTATE
 from miband import miband
-from constants import ACCELEROMETER_UUID
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-m', '--mac', required=False, help='Set mac address of the device')
@@ -139,11 +138,11 @@ if __name__ == "__main__":
     # menu.show()
     
      # Example 1: Get one-time accelerometer reading
-    accel_data = miband_device.get_accel_one_time()
+    accel_data = band.get_accel_one_time()
     print("One-time accelerometer data:")
     for axis_data in accel_data:
         print(f"X: {axis_data['x']}, Y: {axis_data['y']}")
 
     # Example 2: Start continuous accelerometer data collection
     print("\nStarting continuous accelerometer readings:")
-    miband_device.start_accelerometer_realtime(accel_raw_callback)
+    band.start_accelerometer_realtime(accel_raw_callback)

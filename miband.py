@@ -6,7 +6,7 @@ import struct
 from datetime import datetime, timedelta
 from Crypto.Cipher import AES
 from datetime import datetime
-from constants import ACCELEROMETER_UUID
+from constants import UUIDS
 
 try:
     import zlib
@@ -172,7 +172,7 @@ class miband(Peripheral):
         self._desc_music_notif = self._char_music_notif.getDescriptors(forUUID=UUIDS.NOTIFICATION_DESCRIPTOR)[0]
 
         # Add accelerometer service and characteristic initialization
-        self._char_accel = self.getCharacteristics(uuid=ACCELEROMETER_UUID)[0]
+        self._char_accel = self.getCharacteristics(uuid=UUIDS.ACCELEROMETER_UUID)[0]
         self._desc_accel = self._char_accel.getDescriptors(forUUID=UUIDS.NOTIFICATION_DESCRIPTOR)[0]
 
         self._auth_notif(True)
