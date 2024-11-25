@@ -193,7 +193,6 @@ class miband(Peripheral):
         else:
             self._log.error("Something went wrong while changing the Auth Service notifications status...")
 
-
     def initialize(self):
         self._req_rdn()
 
@@ -257,7 +256,11 @@ class miband(Peripheral):
         return res
 
     def _parse_raw_heart(self, bytes):
-        res = struct.unpack('HHHHHHH', bytes[2:])
+        # Interpret as accelerometer data
+        res = []
+        for i in range(0, len(bytes), 4):  # Assuming each reading is 4 bytes (2 axes)
+            x, y = struct.unpack('<hh', bytes[i:i + 4])  # Two 16-bit integers
+            res.append({'x': x, 'y': y})
         return res
 
     @staticmethod
@@ -303,9 +306,8 @@ class miband(Peripheral):
         char = self.svc_1.getCharacteristics(UUIDS.CHARACTERISTIC_CURRENT_TIME)[0]
         return self._parse_date(char.read()[0:9])
 
-
     def get_heart_rate_one_time(self):
-        # stop continous
+        # stop continuous
         self._char_heart_ctrl.write(b'\x15\x01\x00', True)
         # stop manual
         self._char_heart_ctrl.write(b'\x15\x02\x00', True)
@@ -316,8 +318,9 @@ class miband(Peripheral):
             self.waitForNotifications(self.timeout)
             res = self._get_from_queue(QUEUE_TYPES.HEART)
 
-        rate = struct.unpack('bb', res)[1]
-        return rate
+        # Parse as accelerometer data (x, y axes)
+        x, y = struct.unpack('<hh', res[:4])  # Assuming data is in 2x 16-bit integers
+        return {'x': x, 'y': y}
 
     def start_heart_rate_realtime(self, heart_measure_callback):
         char_m = self.svc_heart.getCharacteristics(UUIDS.CHARACTERISTIC_HEART_RATE_MEASURE)[0]
@@ -326,12 +329,12 @@ class miband(Peripheral):
 
         self.heart_measure_callback = heart_measure_callback
 
-        # stop heart monitor continues & manual
+        # stop heart monitor continuous & manual
         char_ctrl.write(b'\x15\x02\x00', True)
         char_ctrl.write(b'\x15\x01\x00', True)
-        # enable heart monitor notifications
+        # enable notifications
         char_d.write(b'\x01\x00', True)
-        # start hear monitor continues
+        # start accelerometer continuous mode
         char_ctrl.write(b'\x15\x01\x01', True)
         t = time.time()
         while True:
@@ -341,7 +344,6 @@ class miband(Peripheral):
             if (time.time() - t) >= 12:
                 char_ctrl.write(b'\x16', True)
                 t = time.time()
-
 
     def stop_realtime(self):
         char_m = self.svc_heart.getCharacteristics(UUIDS.CHARACTERISTIC_HEART_RATE_MEASURE)[0]

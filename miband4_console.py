@@ -6,7 +6,7 @@ import argparse
 import subprocess
 import time
 from datetime import datetime
-
+from bluepy.btle import Peripheral
 from bluepy.btle import BTLEDisconnectError
 from cursesmenu import *
 from cursesmenu.items import *
