@@ -1,3 +1,5 @@
 bluepy
 pycryptodome
 curses-menu
+numpy
+pandas

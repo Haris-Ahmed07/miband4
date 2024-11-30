@@ -12,7 +12,8 @@ from datetime import datetime
 from bluepy.btle import BTLEDisconnectError
 from cursesmenu import *
 from cursesmenu.items import *
-
+import pandas as pd
+import numpy as np 
 from constants import MUSICSTATE
 from miband import miband
 
@@ -114,13 +115,14 @@ def heart_logger(data):
 
 import signal
 
-# Add this to handle keyboard interrupts properly
+stop_flag = False
+
 def stop_recording(signum, frame):
     global stop_flag
-    stop_flag = True
+    stop_flag = True  # Set the flag to exit the loop
     print("\nRecording stopped manually.")
 
-# Register the signal handler
+# Register the signal handler for Ctrl+C
 signal.signal(signal.SIGINT, stop_recording)
 
 heart_rate_data = []  # To store heart rate data
@@ -132,19 +134,20 @@ def record_heart_rate():
     print("Recording heart rate with 5-second intervals...")
 
     try:
-        while True:  # Loop indefinitely until stopped by user (Ctrl+C)
+        i=0
+        while i<5:  # Loop indefinitely until stopped by user (Ctrl+C)
             get_heart_rate()  # Call the function to get heart rate
-            time.sleep(5)  # Wait for 5 seconds before the next reading
+            time.sleep(2)  # Wait for 5 seconds before the next reading
+            i= i+1
     except KeyboardInterrupt:
         print("\nRecording stopped manually.")
     finally:
-        # Save the heart rate data to an Excel file
+        # Save the data if any was recorded
         if heart_rate_data:
-            # Convert data to numpy array for saving
             data_np = np.array([[entry["timestamp"], entry["heart_rate"]] for entry in heart_rate_data])
             df = pd.DataFrame(data_np, columns=["Timestamp", "Heart Rate"])
             filename = "heart_rate_data.xlsx"
-            df.to_excel(filename, index=False)  # Save the data to an Excel file
+            df.to_excel(filename, index=False)
             print(f"Heart rate data saved to {filename}")
         else:
             print("No data recorded.")
