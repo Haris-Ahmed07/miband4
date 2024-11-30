@@ -5,6 +5,7 @@
 import argparse
 import subprocess
 import time
+import signal
 from datetime import datetime
 
 from bluepy.btle import BTLEDisconnectError
@@ -108,19 +109,31 @@ def heart_logger(data):
     print(f"Realtime heart BPM: {data} at {timestamp}")
     heart_rate_data.append({"timestamp": timestamp, "heart_rate": data})
 
+import signal
+
+# Add this to handle keyboard interrupts properly
+def stop_recording(signum, frame):
+    global stop_flag
+    stop_flag = True
+    print("\nRecording stopped manually.")
+
+# Register the signal handler
+signal.signal(signal.SIGINT, stop_recording)
+
 def record_heart_rate():
-    global heart_rate_data
+    global heart_rate_data, stop_flag
     heart_rate_data = []  # Reset data
-    print("Recording heart rate with 5-second intervals...")
+    stop_flag = False  # Initialize stop flag
+    print("Recording heart rate with 5-second intervals. Press Ctrl+C to stop.")
 
     try:
-        for i in range(12):  # Record 12 readings (adjust as needed)
+        while not stop_flag:  # Loop until the stop flag is set
             start_time = time.time()
             band.start_heart_rate_realtime(heart_measure_callback=heart_logger)
             time.sleep(5)  # Measure for 5 seconds
             band.stop_heart_rate_realtime()
 
-            # Add a single reading if available
+            # Add the latest reading
             if heart_rate_data:
                 latest_entry = heart_rate_data[-1]
                 print(f"Recorded: {latest_entry}")
