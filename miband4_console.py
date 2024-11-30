@@ -128,19 +128,20 @@ signal.signal(signal.SIGINT, stop_recording)
 heart_rate_data = []  # To store heart rate data
 
 # Function to record heart rate in intervals
+
 def record_heart_rate():
     global heart_rate_data
-    heart_rate_data = []  # Reset data
+    global stop_flag
+
+    heart_rate_data = []  # Reset the data
     print("Recording heart rate with 5-second intervals...")
 
     try:
-        i=0
-        while i<5:  # Loop indefinitely until stopped by user (Ctrl+C)
-            get_heart_rate()  # Call the function to get heart rate
-            time.sleep(2)  # Wait for 5 seconds before the next reading
-            i= i+1
-    except KeyboardInterrupt:
-        print("\nRecording stopped manually.")
+        while not stop_flag:  # Use flag to exit loop
+            get_heart_rate()  # Record a single heart rate
+            time.sleep(5)  # Wait for 5 seconds
+    except Exception as e:
+        print(f"An error occurred: {e}")
     finally:
         # Save the data if any was recorded
         if heart_rate_data:
@@ -151,7 +152,7 @@ def record_heart_rate():
             print(f"Heart rate data saved to {filename}")
         else:
             print("No data recorded.")
-    
+  
 if __name__ == "__main__":
     try:
         success = False
