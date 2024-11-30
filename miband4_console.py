@@ -111,12 +111,28 @@ def heart_logger(data):
 def record_heart_rate():
     global heart_rate_data
     heart_rate_data = []  # Reset data
-    print("Recording real-time heart rate. Press Enter to stop.")
-    band.start_heart_rate_realtime(heart_measure_callback=heart_logger)
-    input("Press Enter to stop recording...")
-    band.stop_heart_rate_realtime()
+    print("Recording heart rate with 5-second intervals...")
 
-    # Convert to NumPy array and save to Excel
+    try:
+        for i in range(12):  # Record 12 readings (adjust as needed)
+            start_time = time.time()
+            band.start_heart_rate_realtime(heart_measure_callback=heart_logger)
+            time.sleep(5)  # Measure for 5 seconds
+            band.stop_heart_rate_realtime()
+
+            # Add a single reading if available
+            if heart_rate_data:
+                latest_entry = heart_rate_data[-1]
+                print(f"Recorded: {latest_entry}")
+            else:
+                print("No data recorded during this interval.")
+
+            time.sleep(5 - (time.time() - start_time))  # Sleep for the remaining time before the next reading
+
+    except KeyboardInterrupt:
+        print("\nRecording stopped manually.")
+
+    # Save to Excel
     if heart_rate_data:
         data_np = np.array([[entry["timestamp"], entry["heart_rate"]] for entry in heart_rate_data])
         df = pd.DataFrame(data_np, columns=["Timestamp", "Heart Rate"])
