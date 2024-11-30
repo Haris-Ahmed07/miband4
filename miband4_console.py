@@ -101,6 +101,31 @@ def get_realtime():
     band.start_heart_rate_realtime(heart_measure_callback=heart_logger)
     input('Press Enter to continue')
 
+heart_rate_data = []
+
+def heart_logger(data):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"Realtime heart BPM: {data} at {timestamp}")
+    heart_rate_data.append({"timestamp": timestamp, "heart_rate": data})
+
+def record_heart_rate():
+    global heart_rate_data
+    heart_rate_data = []  # Reset data
+    print("Recording real-time heart rate. Press Enter to stop.")
+    band.start_heart_rate_realtime(heart_measure_callback=heart_logger)
+    input("Press Enter to stop recording...")
+    band.stop_heart_rate_realtime()
+
+    # Convert to NumPy array and save to Excel
+    if heart_rate_data:
+        data_np = np.array([[entry["timestamp"], entry["heart_rate"]] for entry in heart_rate_data])
+        df = pd.DataFrame(data_np, columns=["Timestamp", "Heart Rate"])
+        filename = "heart_rate_data.xlsx"
+        df.to_excel(filename, index=False)
+        print(f"Heart rate data saved to {filename}")
+    else:
+        print("No data recorded.")
+
     
 if __name__ == "__main__":
     success = False
@@ -125,8 +150,10 @@ if __name__ == "__main__":
     info_item = FunctionItem("Get general info of the device", general_info)
     single_heart_rate_item = FunctionItem("@ Get Heart Rate", get_heart_rate)
     real_time_heart_rate_item = FunctionItem("@ Get realtime heart rate data", get_realtime)
-    
+    record_heart_rate_item = FunctionItem("@ Record real-time heart rate data", record_heart_rate)
+
     menu.items.append(info_item)
     menu.items.append(single_heart_rate_item)
     menu.items.append(real_time_heart_rate_item)
+    menu.items.append(record_heart_rate_item)
     menu.show()
