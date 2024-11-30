@@ -4,6 +4,7 @@
 
 import argparse
 import subprocess
+from datetime import datetime
 import time
 import signal
 from datetime import datetime
@@ -89,8 +90,10 @@ def general_info():
 
 # Needs Auth
 def get_heart_rate():
-    print ('Latest heart rate is : %i' % band.get_heart_rate_one_time())
-    input('Press a key to continue')
+    heart_rate = band.get_heart_rate_one_time()  # Fetch the latest heart rate
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"Latest heart rate is: {heart_rate} at {timestamp}")
+    heart_rate_data.append({"timestamp": timestamp, "heart_rate": heart_rate})
 
 
 def heart_logger(data):
@@ -120,41 +123,31 @@ def stop_recording(signum, frame):
 # Register the signal handler
 signal.signal(signal.SIGINT, stop_recording)
 
+heart_rate_data = []  # To store heart rate data
+
+# Function to record heart rate in intervals
 def record_heart_rate():
     global heart_rate_data
     heart_rate_data = []  # Reset data
     print("Recording heart rate with 5-second intervals...")
 
     try:
-        for i in range(12):  # Record 12 readings (adjust as needed)
-            start_time = time.time()
-            band.start_heart_rate_realtime(heart_measure_callback=heart_logger)
-            time.sleep(5)  # Measure for 5 seconds
-            band.stop_heart_rate_realtime()
-
-            # Add a single reading if available
-            if heart_rate_data:
-                latest_entry = heart_rate_data[-1]
-                print(f"Recorded: {latest_entry}")
-            else:
-                print("No data recorded during this interval.")
-
-            time.sleep(5 - (time.time() - start_time))  # Sleep for the remaining time before the next reading
-
+        while True:  # Loop indefinitely until stopped by user (Ctrl+C)
+            get_heart_rate()  # Call the function to get heart rate
+            time.sleep(5)  # Wait for 5 seconds before the next reading
     except KeyboardInterrupt:
         print("\nRecording stopped manually.")
-
     finally:
-        # Save to Excel if any data was recorded
+        # Save the heart rate data to an Excel file
         if heart_rate_data:
+            # Convert data to numpy array for saving
             data_np = np.array([[entry["timestamp"], entry["heart_rate"]] for entry in heart_rate_data])
             df = pd.DataFrame(data_np, columns=["Timestamp", "Heart Rate"])
             filename = "heart_rate_data.xlsx"
-            df.to_excel(filename, index=False)
+            df.to_excel(filename, index=False)  # Save the data to an Excel file
             print(f"Heart rate data saved to {filename}")
         else:
             print("No data recorded.")
-
     
 if __name__ == "__main__":
     try:
@@ -169,18 +162,18 @@ if __name__ == "__main__":
                     success = True
                 break
             except BTLEDisconnectError:
-                print('Connection to the MIBand failed. Trying out again in 3 seconds')
+                print('Connection to the MIBand failed. Trying again in 3 seconds')
                 time.sleep(3)
                 continue
 
         menu = CursesMenu("MIBand4", "Features marked with @ require Auth Key")
         info_item = FunctionItem("Get general info of the device", general_info)
         single_heart_rate_item = FunctionItem("@ Get Heart Rate", get_heart_rate)
-        real_time_heart_rate_item = FunctionItem("@ Record realtime heart rate data", record_heart_rate)
+        record_heart_rate_item = FunctionItem("@ Record Heart Rate at 5-second intervals", record_heart_rate)
 
         menu.items.append(info_item)
         menu.items.append(single_heart_rate_item)
-        menu.items.append(real_time_heart_rate_item)
+        menu.items.append(record_heart_rate_item)
 
         menu.show()
 
