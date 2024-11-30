@@ -16,6 +16,7 @@ import pandas as pd
 import numpy as np 
 from constants import MUSICSTATE
 from miband import miband
+import openpyxl
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-m', '--mac', required=False, help='Set mac address of the device')
@@ -139,10 +140,12 @@ def record_heart_rate():
     try:
         while not stop_flag:  # Use flag to exit loop
             get_heart_rate()  # Record a single heart rate
-            time.sleep(5)  # Wait for 5 seconds
+            # time.sleep(5)  # Wait for 5 seconds
     except Exception as e:
         print(f"An error occurred: {e}")
     finally:
+        print("SAVING DATA")
+        print(heart_rate_data)
         # Save the data if any was recorded
         if heart_rate_data:
             data_np = np.array([[entry["timestamp"], entry["heart_rate"]] for entry in heart_rate_data])

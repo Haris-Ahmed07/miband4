@@ -3,3 +3,4 @@ pycryptodome
 curses-menu
 numpy
 pandas
+openpyxl
