@@ -114,38 +114,44 @@ def heart_logger(data):
 import time
 from datetime import datetime
 
-heart_rate_records = []
-
 def record_heart_rate():
+    global heart_rate_records
+    heart_rate_records = []  # Reset records for each session
     try:
-        print("Starting heart rate recording. Press any key to stop.")
+        print("Starting heart rate recording. Press Ctrl+C to stop.")
         while True:
-            heart_rate = band.get_heart_rate_one_time()
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            heart_rate_records.append({
-                "timestamp": timestamp, 
-                "heart_rate": heart_rate
-            })
-            print(f"Heart Rate: {heart_rate} BPM at {timestamp}")
-            time.sleep(7)
+            try:
+                heart_rate = band.get_heart_rate_one_time()
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                heart_rate_records.append({
+                    "timestamp": timestamp, 
+                    "heart_rate": heart_rate
+                })
+                print(f"Heart Rate: {heart_rate} BPM at {timestamp}")
+                time.sleep(7)
+            except Exception as e:
+                print(f"Error getting heart rate: {e}")
+                break
     except KeyboardInterrupt:
         print("\nStopping heart rate recording.")
-    
-    # Print final recorded data
-    print("\nRecorded Heart Rate Data:")
-    for record in heart_rate_records:
-        print(f"{record['timestamp']}: {record['heart_rate']} BPM")
-        
-    # save_to_csv()
+    finally:
+        # Always save data, even if interrupted
+        if heart_rate_records:
+            save_to_csv()
+        input('Press any key to continue')
 
 def save_to_csv():
     import csv
-    filename = f"heart_rate_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-    with open(filename, 'w', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=['timestamp', 'heart_rate'])
-        writer.writeheader()
-        writer.writerows(heart_rate_records)
-    print(f"Data saved to {filename}")
+    try:
+        filename = f"heart_rate_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        with open(filename, 'w', newline='') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=['timestamp', 'heart_rate'])
+            writer.writeheader()
+            writer.writerows(heart_rate_records)
+        print(f"Data saved to {filename}")
+    except Exception as e:
+        print(f"Error saving to CSV: {e}")
+
     
 if __name__ == "__main__":
     try:
