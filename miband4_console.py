@@ -114,9 +114,10 @@ def heart_logger(data):
 import time
 from datetime import datetime
 
+heart_rate_records = []
+
 def record_heart_rate():
-    global heart_rate_records
-    heart_rate_records = []  # Reset records for each session
+
     try:
         print("Starting heart rate recording. Press Ctrl+C to stop.")
         while True:
@@ -134,11 +135,7 @@ def record_heart_rate():
                 break
     except KeyboardInterrupt:
         print("\nStopping heart rate recording.")
-    finally:
-        # Always save data, even if interrupted
-        if heart_rate_records:
-            save_to_csv()
-        input('Press any key to continue')
+
 
 def save_to_csv():
     import csv
@@ -152,6 +149,8 @@ def save_to_csv():
     except Exception as e:
         print(f"Error saving to CSV: {e}")
 
+def save_data():
+    save_to_csv()
     
 if __name__ == "__main__":
     try:
@@ -174,7 +173,7 @@ if __name__ == "__main__":
         info_item = FunctionItem("Get general info of the device", general_info)
         single_heart_rate_item = FunctionItem("@ Get Heart Rate", get_heart_rate)
         real_time_heart_rate_item = FunctionItem("@ Record realtime heart rate data", get_realtime)
-        real_time_heart_rate_item_interval = FunctionItem("@ Record realtime heart rate data", record_heart_rate)
+        real_time_heart_rate_item_interval = FunctionItem("@ Record realtime heart rate data in intervals", record_heart_rate)
 
         menu.items.append(info_item)
         menu.items.append(single_heart_rate_item)
@@ -187,4 +186,6 @@ if __name__ == "__main__":
         print("\nExiting program...")
 
     finally:
+        print("Saving data")
+        save_data()
         print("Goodbye!")
