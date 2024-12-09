@@ -168,10 +168,12 @@ if __name__ == "__main__":
         info_item = FunctionItem("Get general info of the device", general_info)
         single_heart_rate_item = FunctionItem("@ Get Heart Rate", get_heart_rate)
         real_time_heart_rate_item = FunctionItem("@ Record realtime heart rate data", get_realtime)
+        real_time_heart_rate_item_interval = FunctionItem("@ Record realtime heart rate data", record_heart_rate)
 
         menu.items.append(info_item)
         menu.items.append(single_heart_rate_item)
         menu.items.append(real_time_heart_rate_item)
+        menu.items.append(real_time_heart_rate_item_interval)
 
         menu.show()
 
