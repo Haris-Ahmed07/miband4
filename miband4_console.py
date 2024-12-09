@@ -93,68 +93,59 @@ def get_heart_rate():
     input('Press a key to continue')
 
 
-def heart_logger(data):
-    print ('Realtime heart BPM:', data)
+# def heart_logger(data):
+#     print ('Realtime heart BPM:', data)
 
 
 # Needs Auth
 def get_realtime():
-    band.start_heart_rate_realtime(heart_measure_callback=heart_logger)
-    input('Press Enter to continue')
-
-heart_rate_data = []
+    try:
+        print("Starting real-time heart rate monitoring. Press Ctrl+C to stop.")
+        band.start_heart_rate_realtime(heart_measure_callback=heart_logger)
+    except KeyboardInterrupt:
+        print("\nStopping heart rate monitoring...")
+        band.stop_realtime()
 
 def heart_logger(data):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"Realtime heart BPM: {data} at {timestamp}")
-    heart_rate_data.append({"timestamp": timestamp, "heart_rate": data})
+    
 
-import signal
+import time
+from datetime import datetime
 
-# Add this to handle keyboard interrupts properly
-def stop_recording(signum, frame):
-    global stop_flag
-    stop_flag = True
-    print("\nRecording stopped manually.")
-
-# Register the signal handler
-signal.signal(signal.SIGINT, stop_recording)
+heart_rate_records = []
 
 def record_heart_rate():
-    global heart_rate_data
-    heart_rate_data = []  # Reset data
-    print("Recording heart rate with 5-second intervals...")
-
     try:
-        for i in range(12):  # Record 12 readings (adjust as needed)
-            start_time = time.time()
-            band.start_heart_rate_realtime(heart_measure_callback=heart_logger)
-            time.sleep(5)  # Measure for 5 seconds
-            band.stop_heart_rate_realtime()
-
-            # Add a single reading if available
-            if heart_rate_data:
-                latest_entry = heart_rate_data[-1]
-                print(f"Recorded: {latest_entry}")
-            else:
-                print("No data recorded during this interval.")
-
-            time.sleep(5 - (time.time() - start_time))  # Sleep for the remaining time before the next reading
-
+        print("Starting heart rate recording. Press any key to stop.")
+        while True:
+            heart_rate = band.get_heart_rate_one_time()
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            heart_rate_records.append({
+                "timestamp": timestamp, 
+                "heart_rate": heart_rate
+            })
+            print(f"Heart Rate: {heart_rate} BPM at {timestamp}")
+            time.sleep(7)
     except KeyboardInterrupt:
-        print("\nRecording stopped manually.")
+        print("\nStopping heart rate recording.")
+    
+    # Print final recorded data
+    print("\nRecorded Heart Rate Data:")
+    for record in heart_rate_records:
+        print(f"{record['timestamp']}: {record['heart_rate']} BPM")
+        
+    # save_to_csv()
 
-    finally:
-        # Save to Excel if any data was recorded
-        if heart_rate_data:
-            data_np = np.array([[entry["timestamp"], entry["heart_rate"]] for entry in heart_rate_data])
-            df = pd.DataFrame(data_np, columns=["Timestamp", "Heart Rate"])
-            filename = "heart_rate_data.xlsx"
-            df.to_excel(filename, index=False)
-            print(f"Heart rate data saved to {filename}")
-        else:
-            print("No data recorded.")
-
+def save_to_csv():
+    import csv
+    filename = f"heart_rate_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    with open(filename, 'w', newline='') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=['timestamp', 'heart_rate'])
+        writer.writeheader()
+        writer.writerows(heart_rate_records)
+    print(f"Data saved to {filename}")
     
 if __name__ == "__main__":
     try:
@@ -176,7 +167,7 @@ if __name__ == "__main__":
         menu = CursesMenu("MIBand4", "Features marked with @ require Auth Key")
         info_item = FunctionItem("Get general info of the device", general_info)
         single_heart_rate_item = FunctionItem("@ Get Heart Rate", get_heart_rate)
-        real_time_heart_rate_item = FunctionItem("@ Record realtime heart rate data", record_heart_rate)
+        real_time_heart_rate_item = FunctionItem("@ Record realtime heart rate data", get_realtime)
 
         menu.items.append(info_item)
         menu.items.append(single_heart_rate_item)
