@@ -1,191 +1,115 @@
 #!/usr/bin/env python3
+"""
+MiBand 4 Interaction Script
 
-# This script demonstrates the usage, capability and features of the library.
+This script provides a comprehensive interface for interacting with Xiaomi MiBand 4 
+using Bluetooth Low Energy (BLE) communication. It offers various features including 
+heart rate monitoring, device information retrieval, and data logging.
+
+Dependencies:
+- cursesmenu
+- argparse
+"""
 
 import argparse
-import subprocess
-import time
-import signal
-from datetime import datetime
+from cursesmenu import CursesMenu
+from cursesmenu.items import FunctionItem
+from miband_manager import MiBandManager
 
-from bluepy.btle import BTLEDisconnectError
-from cursesmenu import *
-from cursesmenu.items import *
-
-from constants import MUSICSTATE
-from miband import miband
-
-parser = argparse.ArgumentParser()
-parser.add_argument('-m', '--mac', required=False, help='Set mac address of the device')
-parser.add_argument('-k', '--authkey', required=False, help='Set Auth Key for the device')
-args = parser.parse_args()
-
-# Try to obtain MAC from the file
-try:
-    with open("mac.txt", "r") as f:
-        mac_from_file = f.read().strip()
-except FileNotFoundError:
-    mac_from_file = None
-
-# Use appropriate MAC
-if args.mac:
-    MAC_ADDR = args.mac
-elif mac_from_file:
-    MAC_ADDR = mac_from_file
-else:
-    print("Error:")
-    print("  Please specify MAC address of the MiBand")
-    print("  Pass the --mac option with MAC address or put your MAC to 'mac.txt' file")
-    print("  Example of the MAC: a1:c2:3d:4e:f5:6a")
-    exit(1)
-
-# Validate MAC address
-if 1 < len(MAC_ADDR) != 17:
-    print("Error:")
-    print("  Your MAC length is not 17, please check the format")
-    print("  Example of the MAC: a1:c2:3d:4e:f5:6a")
-    exit(1)
-
-# Try to obtain Auth Key from file
-try:
-    with open("auth_key.txt", "r") as f:
-        auth_key_from_file = f.read().strip()
-except FileNotFoundError:
-    auth_key_from_file = None
-
-# Use appropriate Auth Key
-if args.authkey:
-    AUTH_KEY = args.authkey
-elif auth_key_from_file:
-    AUTH_KEY = auth_key_from_file
-else:
-    print("Warning:")
-    print("  To use additional features of this script please put your Auth Key to 'auth_key.txt' or pass the --authkey option with your Auth Key")
-    print()
-    AUTH_KEY = None
+def validate_mac_address(mac_address):
+    """
+    Validate Bluetooth MAC address format.
     
-# Validate Auth Key
-if AUTH_KEY:
-    if 1 < len(AUTH_KEY) != 32:
-        print("Error:")
-        print("  Your AUTH KEY length is not 32, please check the format")
-        print("  Example of the Auth Key: 8fa9b42078627a654d22beff985655db")
+    Args:
+        mac_address (str): MAC address to validate
+    
+    Raises:
+        SystemExit: If MAC address is invalid
+    """
+    if len(mac_address) != 17:
+        print("Error: Invalid MAC address format")
+        print("Example: a1:c2:3d:4e:f5:6a")
         exit(1)
 
-# Convert Auth Key from hex to byte format
-if AUTH_KEY:
-    AUTH_KEY = bytes.fromhex(AUTH_KEY)
-
-def general_info():
-    print ('MiBand')
-    print ('Soft revision:',band.get_revision())
-    print ('Hardware revision:',band.get_hrdw_revision())
-    print ('Serial:',band.get_serial())
-    print ('Battery:', band.get_battery_info()['level'])
-    print ('Time:', band.get_current_time()['date'].isoformat())
-    input('Press a key to continue')
-
-
-
-# Needs Auth
-def get_heart_rate():
-    print ('Latest heart rate is : %i' % band.get_heart_rate_one_time())
-    input('Press a key to continue')
-
-
-# def heart_logger(data):
-#     print ('Realtime heart BPM:', data)
-
-
-# Needs Auth
-def get_realtime():
-    try:
-        print("Starting real-time heart rate monitoring. Press Ctrl+C to stop.")
-        band.start_heart_rate_realtime(heart_measure_callback=heart_logger)
-    except KeyboardInterrupt:
-        print("\nStopping heart rate monitoring...")
-        band.stop_realtime()
-
-def heart_logger(data):
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"Realtime heart BPM: {data} at {timestamp}")
+def load_auth_key(auth_key_path=None):
+    """
+    Load authentication key from file or command line.
     
-
-import time
-from datetime import datetime
-
-heart_rate_records = []
-
-def record_heart_rate():
-
-    try:
-        print("Starting heart rate recording. Press Ctrl+C to stop.")
-        while True:
-            try:
-                heart_rate = band.get_heart_rate_one_time()
-                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                heart_rate_records.append({
-                    "timestamp": timestamp, 
-                    "heart_rate": heart_rate
-                })
-                print(f"Heart Rate: {heart_rate} BPM at {timestamp}")
-                time.sleep(7)
-            except Exception as e:
-                print(f"Error getting heart rate: {e}")
-                break
-    except KeyboardInterrupt:
-        print("\nStopping heart rate recording.")
-
-
-def save_to_csv():
-    import csv
-    try:
-        filename = f"heart_rate_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-        with open(filename, 'w', newline='') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=['timestamp', 'heart_rate'])
-            writer.writeheader()
-            writer.writerows(heart_rate_records)
-        print(f"Data saved to {filename}")
-    except Exception as e:
-        print(f"Error saving to CSV: {e}")
-
-def save_data():
-    save_to_csv()
+    Args:
+        auth_key_path (str, optional): Path to auth key file
     
-if __name__ == "__main__":
+    Returns:
+        bytes or None: Authentication key
+    """
     try:
-        success = False
-        while not success:
-            try:
-                if (AUTH_KEY):
-                    band = miband(MAC_ADDR, AUTH_KEY, debug=True)
-                    success = band.initialize()
-                else:
-                    band = miband(MAC_ADDR, debug=True)
-                    success = True
-                break
-            except BTLEDisconnectError:
-                print('Connection to the MIBand failed. Trying out again in 3 seconds')
-                time.sleep(3)
-                continue
+        # Try loading from file if path provided
+        if auth_key_path:
+            with open(auth_key_path, "r") as f:
+                auth_key = f.read().strip()
+        else:
+            with open("auth_key.txt", "r") as f:
+                auth_key = f.read().strip()
+        
+        # Validate key length
+        if len(auth_key) != 32:
+            print("Error: Invalid Auth Key length")
+            return None
+        
+        return bytes.fromhex(auth_key)
+    
+    except FileNotFoundError:
+        print("Warning: No auth key found")
+        return None
 
-        menu = CursesMenu("MIBand4", "Features marked with @ require Auth Key")
-        info_item = FunctionItem("Get general info of the device", general_info)
-        single_heart_rate_item = FunctionItem("@ Get Heart Rate", get_heart_rate)
-        real_time_heart_rate_item = FunctionItem("@ Record realtime heart rate data", get_realtime)
-        real_time_heart_rate_item_interval = FunctionItem("@ Record realtime heart rate data in intervals", record_heart_rate)
+def main():
+    """
+    Main application entry point.
+    Handles argument parsing, device connection, and menu interaction.
+    """
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description="MiBand 4 Interaction Tool")
+    parser.add_argument('-m', '--mac', help='Bluetooth MAC address of MiBand')
+    parser.add_argument('-k', '--authkey', help='Authentication key file path')
+    args = parser.parse_args()
 
-        menu.items.append(info_item)
-        menu.items.append(single_heart_rate_item)
-        menu.items.append(real_time_heart_rate_item)
-        menu.items.append(real_time_heart_rate_item_interval)
+    # Load MAC address
+    mac_address = args.mac or None
+    if not mac_address:
+        try:
+            with open("mac.txt", "r") as f:
+                mac_address = f.read().strip()
+        except FileNotFoundError:
+            print("Error: No MAC address specified")
+            exit(1)
 
+    # Validate and load components
+    validate_mac_address(mac_address)
+    auth_key = load_auth_key(args.authkey)
+
+    # Initialize MiBand manager
+    miband_manager = MiBandManager(mac_address, auth_key)
+
+    # Establish connection
+    while not miband_manager.connect():
+        pass
+
+    # Create interactive menu
+    menu = CursesMenu("MiBand4", "Features marked with @ require Auth Key")
+    menu.items.extend([
+        FunctionItem("Get Device Info", miband_manager.get_device_info),
+        FunctionItem("@ Get Single Heart Rate", miband_manager.get_single_heart_rate),
+        FunctionItem("@ Record Heart Rate In Intervals", miband_manager.record_heart_rate_intervals),
+        FunctionItem("@ Record Heart Rate In RealTime", miband_manager.record_heart_rate_realtime)
+    ])
+
+    try:
         menu.show()
-
     except KeyboardInterrupt:
         print("\nExiting program...")
-
     finally:
-        print("Saving data")
-        save_data()
+        print("Saving data...")
+        miband_manager.save_heart_rate_to_csv()
         print("Goodbye!")
+
+if __name__ == "__main__":
+    main()
